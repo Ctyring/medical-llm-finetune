@@ -10,8 +10,7 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 from trl import SFTTrainer
-from unsloth import LoRAConfig, is_bfloat16_supported
-from peft import get_peft_model, prepare_model_for_kbit_training, PeftModel
+from peft import get_peft_model, prepare_model_for_kbit_training, PeftModel, LoraConfig as LoRAConfig
 from evaluate import load
 import numpy as np
 from rouge import Rouge
@@ -22,7 +21,15 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 确保中文分词正常工作
+def is_bfloat16_supported():
+    """检查是否支持bfloat16"""
+    if not torch.cuda.is_available():
+        return False
+    try:
+        # 检查GPU是否支持bfloat16
+        return torch.cuda.is_bf16_supported()
+    except:
+        return False
 try:
     import nltk
     nltk.data.path.append("/tmp/nltk_data")
@@ -43,7 +50,7 @@ SUPPORTED_MODELS = {
         "model_kwargs": {"trust_remote_code": True}
     },
     "qwen": {
-        "name": "Qwen/Qwen-7B",
+        "name": "Qwen/Qwen3-1.7B",
         "tokenizer_kwargs": {"trust_remote_code": True},
         "model_kwargs": {"trust_remote_code": True}
     }
@@ -111,22 +118,28 @@ def load_gpu_qa_dataset(dataset_path, split="train"):
 
 def preprocess_gpu_qa(examples, tokenizer, max_length=1024):
     """预处理GPU-QA数据集，转换为模型可接受的格式"""
-    prompts = []
+    texts = []
     
     # 处理简单的question-answer格式
     for question, answer in zip(examples["question"], examples["answer"]):
         # 构建GPU知识指令模板
-        prompt = f"""### GPU问题:
+        text = f"""### GPU问题:
 {question}
 
 ### 专业解答:
 {answer}"""
-        prompts.append(prompt)
+        texts.append(text)
     
-    # 编码文本
-    model_inputs = tokenizer(prompts, max_length=max_length, truncation=True)
+    # 直接tokenize并返回
+    model_inputs = tokenizer(
+        texts, 
+        max_length=max_length, 
+        truncation=True, 
+        padding=False,
+        return_tensors=None
+    )
     
-    # 准备标签（与输入相同，因为我们在做生成任务）
+    # 设置labels为input_ids的副本（用于语言建模）
     model_inputs["labels"] = model_inputs["input_ids"].copy()
     
     return model_inputs
@@ -168,7 +181,8 @@ def setup_lora_config(rank=8):
         lora_alpha=16,
         lora_dropout=0.1,
         bias="none",
-        task_type="CAUSAL_LM"
+        task_type="CAUSAL_LM",
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     )
 
 def train_model(model, tokenizer, train_dataset, eval_dataset, args):
@@ -177,8 +191,7 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
     lora_config = setup_lora_config(args.lora_rank)
     
     # 包装模型
-    if not args.load_in_4bit:
-        model = get_peft_model(model, lora_config)
+    model = get_peft_model(model, lora_config)
     
     # 打印可训练参数
     model.print_trainable_parameters()
@@ -201,7 +214,7 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
         seed=42,
         output_dir=args.output_dir,
         report_to="none",
-        evaluation_strategy="steps" if eval_dataset is not None else "no",
+        eval_strategy="steps" if eval_dataset is not None else "no",
         save_strategy="steps",
         load_best_model_at_end=True if eval_dataset is not None else False,
     )
@@ -209,14 +222,9 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
     # 创建训练器
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        dataset_text_field="text",
-        max_seq_length=args.max_seq_length,
-        data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
         args=training_args,
-        peft_config=lora_config if args.load_in_4bit else None,
     )
     
     # 开始训练
