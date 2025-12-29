@@ -25,12 +25,12 @@ if [ ! -d "GPU-QA" ]; then
     unzip GPU-QA.zip
 fi
 
-# 微调Llama模型
-echo "开始微调Llama模型（GPU知识助手）..."
+# 微调Qwen3-1.7B模型
+echo "开始微调Qwen3-1.7B模型（GPU知识助手）..."
 python gpu_llm_finetune.py \
-    --model_type llama \
+    --model_type qwen3-1.7b \
     --dataset_path GPU-QA \
-    --output_dir outputs/llama-gpu-assistant \
+    --output_dir outputs/qwen3-1.7b-gpu-assistant \
     --lora_rank 8 \
     --learning_rate 2e-4 \
     --per_device_train_batch_size 4 \
@@ -40,12 +40,12 @@ python gpu_llm_finetune.py \
     --do_train \
     --do_eval
 
-# 微调DeepSeek模型
-echo "开始微调DeepSeek模型（GPU知识助手）..."
+# 微调Qwen3-0.6B模型
+echo "开始微调Qwen3-0.6B模型（GPU知识助手）..."
 python gpu_llm_finetune.py \
-    --model_type deepseek \
+    --model_type qwen3-0.6b \
     --dataset_path GPU-QA \
-    --output_dir outputs/deepseek-gpu-assistant \
+    --output_dir outputs/qwen3-0.6b-gpu-assistant \
     --lora_rank 8 \
     --learning_rate 2e-4 \
     --per_device_train_batch_size 4 \
@@ -55,19 +55,4 @@ python gpu_llm_finetune.py \
     --do_train \
     --do_eval
 
-# 微调Qwen模型
-echo "开始微调Qwen模型（GPU知识助手）..."
-python gpu_llm_finetune.py \
-    --model_type qwen \
-    --dataset_path GPU-QA \
-    --output_dir outputs/qwen-gpu-assistant \
-    --lora_rank 8 \
-    --learning_rate 2e-4 \
-    --per_device_train_batch_size 4 \
-    --gradient_accumulation_steps 4 \
-    --max_steps 1000 \
-    --max_seq_length 1024 \
-    --do_train \
-    --do_eval
-
-echo "所有GPU知识助手模型微调完成！"
+echo "Qwen3 GPU知识助手模型微调完成！"

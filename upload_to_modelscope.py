@@ -20,7 +20,7 @@ def upload_model_to_modelscope():
     # ==========================================
     
     MODEL_ID = f"{USERNAME}/{MODEL_NAME}"
-    LOCAL_MODEL_PATH = "qwen-output"
+    LOCAL_MODEL_PATH = "qwen-output3"
     
     print("🚀 开始上传模型到ModelScope...")
     print(f"📦 模型ID: {MODEL_ID}")

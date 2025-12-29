@@ -11,4 +11,3 @@ sentencepiece>=0.1.99
 rich>=12.0.0
 colorama>=0.4.4
 packaging>=21.0
-bitsandbytes>=0.41.0

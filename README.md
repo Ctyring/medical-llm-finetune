@@ -6,9 +6,8 @@
 
 ## 支持的模型
 
-- **Llama-2-7B**: Meta开源的基础语言模型
-- **DeepSeek-Coder-1.3B**: 专注于代码理解的轻量级模型  
-- **Qwen-7B**: 阿里巴巴开源的中文优化模型
+- **Qwen3-1.7B**: 阿里巴巴最新的中等规模模型，平衡性能与效率
+- **Qwen3-0.6B**: 轻量级模型，适合资源受限环境和快速推理
 
 ## 项目结构
 
@@ -25,9 +24,8 @@
 │   ├── 基础题集            # 基础GPU知识题目
 │   └── README.md           # 数据集说明
 └── outputs/                # 模型输出目录
-    ├── llama-gpu-assistant/
-    ├── deepseek-gpu-assistant/
-    └── qwen-gpu-assistant/
+    ├── qwen3-1.7b-gpu-assistant/
+    └── qwen3-0.6b-gpu-assistant/
 ```
 
 ## 快速开始
@@ -99,7 +97,7 @@ python test_dataset.py
 
 ```bash
 # 单个模型训练
-python gpu_llm_finetune.py --model_type llama --do_train --do_eval
+python gpu_llm_finetune.py --model_type qwen3-1.7b --do_train --do_eval
 
 # 批量训练所有模型
 bash run_gpu_finetune.sh  # Linux/Mac
@@ -110,7 +108,7 @@ bash run_gpu_finetune.sh  # Linux/Mac
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--model_type` | llama | 模型类型 (llama/deepseek/qwen) |
+| `--model_type` | qwen3-1.7b | 模型类型 (qwen3-1.7b/qwen3-0.6b) |
 | `--dataset_path` | GPU-QA | 数据集路径 |
 | `--output_dir` | outputs | 输出目录 |
 | `--lora_rank` | 8 | LoRA适配器秩 |
@@ -150,9 +148,8 @@ bash run_gpu_finetune.sh  # Linux/Mac
 1. **硬件要求**: 建议使用具有足够显存的GPU进行训练（至少8GB显存）
 2. **数据质量**: 确保训练数据的专业性和准确性，涵盖GPU各个方面
 3. **模型选择**: 根据应用场景选择合适的基础模型
-   - Llama-2-7B: 综合性能好，适合通用GPU问答
-   - DeepSeek-Coder-1.3B: 轻量级，适合资源受限环境
-   - Qwen-7B: 中文优化，适合中文GPU问答
+   - Qwen3-1.7B: 中等规模，平衡性能与资源消耗，适合大多数GPU问答场景
+   - Qwen3-0.6B: 轻量级，适合资源受限环境和快速推理需求
 4. **参数调优**: 可根据数据集大小调整训练参数
 5. **数据安全**: 确保训练数据不包含敏感信息
 
