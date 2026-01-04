@@ -31,11 +31,11 @@ python gpu_llm_finetune.py \
     --model_type qwen3-1.7b \
     --dataset_path GPU-QA \
     --output_dir outputs/qwen3-1.7b-gpu-assistant \
-    --lora_rank 8 \
-    --learning_rate 2e-4 \
-    --per_device_train_batch_size 4 \
-    --gradient_accumulation_steps 4 \
-    --max_steps 1000 \
+    --lora_rank 16 \
+    --learning_rate 5e-5 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 8 \
+    --max_steps 2000 \
     --max_seq_length 1024 \
     --do_train \
     --do_eval
@@ -46,11 +46,11 @@ python gpu_llm_finetune.py \
     --model_type qwen3-0.6b \
     --dataset_path GPU-QA \
     --output_dir outputs/qwen3-0.6b-gpu-assistant \
-    --lora_rank 8 \
-    --learning_rate 2e-4 \
-    --per_device_train_batch_size 4 \
-    --gradient_accumulation_steps 4 \
-    --max_steps 1000 \
+    --lora_rank 16 \
+    --learning_rate 5e-5 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 8 \
+    --max_steps 2000 \
     --max_seq_length 1024 \
     --do_train \
     --do_eval

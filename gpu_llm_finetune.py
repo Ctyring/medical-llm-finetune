@@ -39,18 +39,13 @@ except Exception as e:
 
 # 支持的模型列表
 SUPPORTED_MODELS = {
-    "llama": {
-        "name": "meta-llama/Llama-2-7b-hf",
+    "qwen3-1.7b": {
+        "name": "Qwen/qwen3-1.5B-Instruct",
         "tokenizer_kwargs": {"trust_remote_code": True},
         "model_kwargs": {"trust_remote_code": True}
     },
-    "deepseek": {
-        "name": "deepseek-ai/deepseek-coder-1.3b-base",
-        "tokenizer_kwargs": {"trust_remote_code": True},
-        "model_kwargs": {"trust_remote_code": True}
-    },
-    "qwen": {
-        "name": "Qwen/Qwen3-1.7B",
+    "qwen3-0.6b": {
+        "name": "Qwen/qwen3-0.5B-Instruct",
         "tokenizer_kwargs": {"trust_remote_code": True},
         "model_kwargs": {"trust_remote_code": True}
     }
@@ -58,21 +53,21 @@ SUPPORTED_MODELS = {
 
 def parse_args():
     parser = argparse.ArgumentParser(description="基于GPU-QA数据集微调GPU知识助手大模型")
-    parser.add_argument("--model_type", type=str, default="llama", 
+    parser.add_argument("--model_type", type=str, default="qwen3-1.7b", 
                         choices=SUPPORTED_MODELS.keys(), help="选择要微调的模型类型")
     parser.add_argument("--dataset_path", type=str, default="GPU-QA", 
                         help="GPU-QA数据集路径或名称")
     parser.add_argument("--output_dir", type=str, default="outputs", 
                         help="微调模型的输出目录")
-    parser.add_argument("--lora_rank", type=int, default=8, 
+    parser.add_argument("--lora_rank", type=int, default=16, 
                         help="LoRA适配器的秩")
-    parser.add_argument("--learning_rate", type=float, default=2e-4, 
+    parser.add_argument("--learning_rate", type=float, default=5e-5, 
                         help="学习率")
-    parser.add_argument("--per_device_train_batch_size", type=int, default=4, 
+    parser.add_argument("--per_device_train_batch_size", type=int, default=2, 
                         help="每个设备的训练批次大小")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=4, 
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=8, 
                         help="梯度累积步数")
-    parser.add_argument("--max_steps", type=int, default=1000, 
+    parser.add_argument("--max_steps", type=int, default=2000, 
                         help="最大训练步数")
     parser.add_argument("--max_seq_length", type=int, default=1024, 
                         help="最大序列长度")
@@ -122,12 +117,20 @@ def preprocess_gpu_qa(examples, tokenizer, max_length=1024):
     
     # 处理简单的question-answer格式
     for question, answer in zip(examples["question"], examples["answer"]):
-        # 构建GPU知识指令模板
-        text = f"""### GPU问题:
-{question}
-
-### 专业解答:
-{answer}"""
+        # 使用更标准的对话格式，适合Instruct模型
+        messages = [
+            {"role": "system", "content": "你是一个专业的GPU知识助手，能够准确回答关于GPU硬件、软件、应用等各方面的问题。"},
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": answer}
+        ]
+        
+        # 使用tokenizer的chat template
+        if hasattr(tokenizer, 'apply_chat_template') and tokenizer.chat_template is not None:
+            text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        else:
+            # 备用格式
+            text = f"<|im_start|>system\n你是一个专业的GPU知识助手，能够准确回答关于GPU硬件、软件、应用等各方面的问题。<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n{answer}<|im_end|>"
+        
         texts.append(text)
     
     # 直接tokenize并返回
@@ -174,12 +177,12 @@ def create_model_and_tokenizer(model_type, load_in_4bit=False):
     logger.info(f"成功加载{model_type}模型和分词器")
     return model, tokenizer
 
-def setup_lora_config(rank=8):
+def setup_lora_config(rank=16):
     """设置LoRA配置"""
     return LoRAConfig(
         r=rank,
-        lora_alpha=16,
-        lora_dropout=0.1,
+        lora_alpha=32,  # 增加alpha值，通常是rank的2倍
+        lora_dropout=0.05,  # 降低dropout
         bias="none",
         task_type="CAUSAL_LM",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -200,7 +203,7 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
     training_args = TrainingArguments(
         per_device_train_batch_size=args.per_device_train_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        warmup_steps=50,
+        warmup_steps=100,  # 增加warmup步数
         max_steps=args.max_steps,
         learning_rate=args.learning_rate,
         fp16=not is_bfloat16_supported(),
@@ -217,6 +220,9 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
         eval_strategy="steps" if eval_dataset is not None else "no",
         save_strategy="steps",
         load_best_model_at_end=True if eval_dataset is not None else False,
+        dataloader_drop_last=True,  # 确保批次大小一致
+        remove_unused_columns=False,  # 保留所有列
+        gradient_checkpointing=True,  # 启用梯度检查点节省内存
     )
     
     # 创建训练器
@@ -225,6 +231,9 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=training_args,
+        max_seq_length=args.max_seq_length,
+        dataset_text_field="text" if "text" in train_dataset.column_names else None,
+        packing=False,  # 不使用packing，保持对话完整性
     )
     
     # 开始训练
@@ -255,10 +264,15 @@ def evaluate_model(model, tokenizer, eval_dataset, args):
         reference_answer = example["answer"]
         
         # 构建输入提示
-        prompt = f"""### GPU问题:
-{question}
-
-### 专业解答:"""
+        messages = [
+            {"role": "system", "content": "你是一个专业的GPU知识助手，能够准确回答关于GPU硬件、软件、应用等各方面的问题。"},
+            {"role": "user", "content": question}
+        ]
+        
+        if hasattr(tokenizer, 'apply_chat_template') and tokenizer.chat_template is not None:
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        else:
+            prompt = f"<|im_start|>system\n你是一个专业的GPU知识助手，能够准确回答关于GPU硬件、软件、应用等各方面的问题。<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
         
         # 编码输入
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)

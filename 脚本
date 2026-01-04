@@ -1,0 +1,38 @@
+https://developer.metax-tech.com/softnova/category?package_kind=AI&dimension=metax&chip_name=%E6%9B%A6%E4%BA%91C500%E7%B3%BB%E5%88%97&deliver_type=%E5%88%86%E5%B1%82%E5%8C%85&ai_frame=bitsandbytes&ai_label=BitsAndBytes
+tar xvJf maca-bitsandbytes-py310-3.0.0.5-linux-x86_64.tar.xz
+cd maca-bitsandbytes-3.0.0.5/wheel && pip install bitsandbytes-0.45.2+maca3.0.0.5-cp310-cp310-linux_x86_64.whl
+cd ../..
+wget https://files.pythonhosted.org/packages/e8/dc/469cbf7f4664edb412abbbcd2099e79ee90b1bb9121cbd0c8e502a1d68e4/unsloth-2025.7.2.tar.gz
+tar -xzf unsloth-2025.7.2.tar.gz
+cd unsloth-2025.7.2
+pip install --no-deps .
+cd ..
+git clone https://github.com/Ctyring/medical-llm-finetune.git
+cd medical-llm-finetune/
+pip install -r requirements.txt
+# python start_gpu_assistant.py
+python gpu_llm_finetune.py \
+    --model_type qwen3-1.7b \
+    --dataset_path GPU-QA \
+    --output_dir outputs/qwen3-1.7b-gpu-assistant \
+    --lora_rank 16 \
+    --learning_rate 5e-5 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 8 \
+    --max_steps 2000 \
+    --max_seq_length 1024 \
+    --do_train \
+    --do_eval
+python gpu_llm_finetune.py \
+    --model_type qwen3-0.6b \
+    --dataset_path GPU-QA \
+    --output_dir outputs/qwen3-0.6b-gpu-assistant \
+    --lora_rank 16 \
+    --learning_rate 5e-5 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 8 \
+    --max_steps 2000 \
+    --max_seq_length 1024 \
+    --do_train \
+    --do_eval
+tar -czvf outputs.tar.gz outputs/
