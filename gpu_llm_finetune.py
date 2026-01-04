@@ -231,7 +231,7 @@ def train_model(model, tokenizer, train_dataset, eval_dataset, args):
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=training_args,
-        max_seq_length=args.max_seq_length,
+        max_source_length=args.max_seq_length,
         dataset_text_field="text" if "text" in train_dataset.column_names else None,
         packing=False,  # 不使用packing，保持对话完整性
     )
