@@ -40,12 +40,12 @@ except Exception as e:
 # 支持的模型列表
 SUPPORTED_MODELS = {
     "qwen3-1.7b": {
-        "name": "Qwen/qwen3-1.5B-Instruct",
+        "name": "Qwen/Qwen3-1.7B",
         "tokenizer_kwargs": {"trust_remote_code": True},
         "model_kwargs": {"trust_remote_code": True}
     },
     "qwen3-0.6b": {
-        "name": "Qwen/qwen3-0.5B-Instruct",
+        "name": "Qwen/Qwen3-0.6B",
         "tokenizer_kwargs": {"trust_remote_code": True},
         "model_kwargs": {"trust_remote_code": True}
     }
